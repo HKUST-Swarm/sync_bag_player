@@ -1,9 +1,11 @@
 
 struct TimeSync {
+    int32_t drone_id;
     double system_time;
     double played_time_sys;
     double played_time_bag;
     double rate;
+    double bag_time_abs;
 }
 
 struct SyncBagCtrl {

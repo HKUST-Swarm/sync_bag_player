@@ -10,17 +10,19 @@ except ImportError:
 import struct
 
 class TimeSync(object):
-    __slots__ = ["system_time", "played_time_sys", "played_time_bag", "rate"]
+    __slots__ = ["drone_id", "system_time", "played_time_sys", "played_time_bag", "rate", "bag_time_abs"]
 
-    __typenames__ = ["double", "double", "double", "double"]
+    __typenames__ = ["int32_t", "double", "double", "double", "double", "double"]
 
-    __dimensions__ = [None, None, None, None]
+    __dimensions__ = [None, None, None, None, None, None]
 
     def __init__(self):
+        self.drone_id = 0
         self.system_time = 0.0
         self.played_time_sys = 0.0
         self.played_time_bag = 0.0
         self.rate = 0.0
+        self.bag_time_abs = 0.0
 
     def encode(self):
         buf = BytesIO()
@@ -29,7 +31,7 @@ class TimeSync(object):
         return buf.getvalue()
 
     def _encode_one(self, buf):
-        buf.write(struct.pack(">dddd", self.system_time, self.played_time_sys, self.played_time_bag, self.rate))
+        buf.write(struct.pack(">iddddd", self.drone_id, self.system_time, self.played_time_sys, self.played_time_bag, self.rate, self.bag_time_abs))
 
     def decode(data):
         if hasattr(data, 'read'):
@@ -43,13 +45,13 @@ class TimeSync(object):
 
     def _decode_one(buf):
         self = TimeSync()
-        self.system_time, self.played_time_sys, self.played_time_bag, self.rate = struct.unpack(">dddd", buf.read(32))
+        self.drone_id, self.system_time, self.played_time_sys, self.played_time_bag, self.rate, self.bag_time_abs = struct.unpack(">iddddd", buf.read(44))
         return self
     _decode_one = staticmethod(_decode_one)
 
     def _get_hash_recursive(parents):
         if TimeSync in parents: return 0
-        tmphash = (0x3b471198f97890d6) & 0xffffffffffffffff
+        tmphash = (0xc287b7f030398c5e) & 0xffffffffffffffff
         tmphash  = (((tmphash<<1)&0xffffffffffffffff) + (tmphash>>63)) & 0xffffffffffffffff
         return tmphash
     _get_hash_recursive = staticmethod(_get_hash_recursive)

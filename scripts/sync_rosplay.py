@@ -11,7 +11,7 @@ from TimeSync import *
 import threading
 
 class SyncBagPlayer:
-    def __init__(self, bag_path, play_t0_sys=None, start = 0, rate=1.0, autostart=False):
+    def __init__(self, bag_path, play_t0_sys=None, start = 0, rate=1.0, autostart=False, drone_id = 1):
         self.bag = rosbag.Bag(bag_path)
         self.prepare_publishers()
         self.play_t0_sys = play_t0_sys
@@ -22,6 +22,7 @@ class SyncBagPlayer:
         self.rate = rate
         self.is_bag_playing = autostart
         self.is_terminated = False
+        self.drone_id = drone_id
 
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
         self.ctrl_sub = self.lc.subscribe("CTRL_PLAYER", self.sync_bag_ctrl_handle)
@@ -41,6 +42,9 @@ class SyncBagPlayer:
             self.duration = msg.duration
             self.rate = msg.rate
             self.start_bag_duration = msg.start_t
+        if msg.cmd == 2:
+            self.is_bag_playing = True
+            self.play_t0_sys = msg.system_time
         elif msg.cmd < 0:
             print("[SyncBagPlayer] Player cancelled by LCM, exiting.")
             self.is_bag_playing = False
@@ -65,12 +69,14 @@ class SyncBagPlayer:
         self.publishers = publishers
         self.clock_pub = rospy.Publisher("/clock", Clock, queue_size=10)
     
-    def send_time_sync(self, tsys, tplayedsys, tplayedbag):
+    def send_time_sync(self, tsys, tplayedsys, tplayedbag, t_bag):
         t_sync = TimeSync()
         t_sync.system_time = tsys
         t_sync.played_time_sys = tplayedsys
         t_sync.played_time_bag = tplayedbag
         t_sync.rate = self.rate
+        t_sync.bag_time_abs = t_bag.to_sec()
+        t_sync.drone_id = self.drone_id
         self.lc.publish("PLAYERS_SYNC", t_sync.encode())
 
     def play(self):
@@ -102,7 +108,7 @@ class SyncBagPlayer:
                     t_played_time_sys = t_system - self.play_t0_sys
                     time.sleep(0.0001)
 
-                self.send_time_sync(t_system, t_played_time_sys, t_bag_played)
+                self.send_time_sync(t_system, t_played_time_sys, t_bag_played, t_bag)
 
                 self.publishers[topic].publish(msg)
                 sim_clock = Clock()
@@ -114,9 +120,9 @@ class SyncBagPlayer:
                     print("Time {:5.2f}/{:5.2f} Progress {:3.2f}% Count {}".format(t_, self.total_time, progress, count), end="\r")
                     sys.stdout.flush()
                 count += 1
-            except Exception:
+            except Exception as e:
                 print("[SyncBagPlayer] Exiting.")
-                break
+                raise e
 
 if __name__ == "__main__":
     import argparse
@@ -137,11 +143,15 @@ if __name__ == "__main__":
                     default=0.0,
                     help='start')
 
+    parser.add_argument('--drone-id', type=int,
+                    default=1,
+                    help='start')
+
     parser.add_argument('--autostart', type=bool,
                     default=False,
                     help='automatics start play at spec system time')
 
     args = parser.parse_args()
     rospy.init_node("player")
-    player = SyncBagPlayer(args.path, args.syst, args.start, args.rate, args.autostart)
+    player = SyncBagPlayer(args.path, args.syst, args.start, args.rate, args.autostart, args.drone_id)
     player.play()

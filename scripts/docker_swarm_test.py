@@ -37,15 +37,23 @@ def launch_docker(name, config, dataset_path):
 --env='DISPLAY' --volume='/tmp/.X11-unix:/tmp/.X11-unix:rw' \
 --privileged \
 {container_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path}"""
-    print(cmd)
+    # print(cmd)
     p_docker = subprocess.Popen(f'terminator -T {name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
     return p_docker
 
 def run_swarm_docker_evaluation(config):
     pids = {}
+    pids_zsh = {}
     for name in config["dataset"]:
         pids[name] = launch_docker(name, config, pathlib.Path(args.config_path).parent.resolve())
-    return pids
+
+    time.sleep(1.0)
+    for name in config["dataset"]:
+        cmd = f'terminator -T {name} --new-tab  -x docker exec -it {name} /bin/zsh'
+        print(cmd)
+        pids_zsh[name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
+    
+    return pids, pids_zsh
 
 if __name__ == '__main__':
     print("Start swarm docker test")
@@ -56,12 +64,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
-    pids = run_swarm_docker_evaluation(config)
+    pids, _ = run_swarm_docker_evaluation(config)
 
-    time.sleep(10)
-    sync_ctrl = SyncCtrl()
-    sync_ctrl.work()
+    try:
+        time.sleep(10)
+        sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], start_delay=0.1)
+        sync_ctrl.work()
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+    
     for p in pids:
-        print(f"Killing {p}")
         kill_docker(p)
         pids[p].kill()
