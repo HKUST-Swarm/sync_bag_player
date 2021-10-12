@@ -1,7 +1,16 @@
+
+struct TimeSync {
+    double system_time;
+    double played_time_sys;
+    double played_time_bag;
+    double rate;
+}
+
 struct SyncBagCtrl {
     int32_t cmd;
     float t0;
     float param1;
     float param2;
     float param3;
+    double system_time;
 }
