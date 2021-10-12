@@ -49,8 +49,7 @@ def run_swarm_docker_evaluation(config):
 
     time.sleep(1.0)
     for name in config["dataset"]:
-        cmd = f'terminator -T {name} --new-tab  -x docker exec -it {name} /bin/zsh'
-        print(cmd)
+        cmd = f'terminator -T {name}_zsh -x docker exec -it {name} /bin/zsh'
         pids_zsh[name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     
     return pids, pids_zsh
@@ -68,7 +67,7 @@ if __name__ == '__main__':
 
     try:
         time.sleep(10)
-        sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], start_delay=0.1)
+        sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], start_delay=1.0)
         sync_ctrl.work()
     except KeyboardInterrupt:
         print("KeyboardInterrupt")

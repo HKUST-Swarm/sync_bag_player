@@ -6,10 +6,12 @@ import time
 import lcm
 from SyncBagCtrl import *
 from TimeSync import *
+from PlayerStats import *
 import keyboard  # using module keyboard
 import readchar
 from pynput.keyboard import Key, Listener
 import threading
+import math
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
@@ -30,13 +32,13 @@ class SyncCtrl:
         self.t_bag = {}
 
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
-        self.sync_sub = self.lc.subscribe("PLAYERS_SYNC", self.time_sync_handle)
+        self.sync_sub = self.lc.subscribe("PLAYER_STATS", self.time_sync_handle)
         self.is_terminated = False
         self.t = threading.Thread(target = self.lcm_thread)
         self.t.start()
         
     def time_sync_handle(self, channel, msg):
-        msg = TimeSync.decode(msg)
+        msg = PlayerStats.decode(msg)
         self.t_p_sys[msg.drone_id] = msg.played_time_sys
         self.t_p_bag[msg.drone_id] = msg.played_time_bag
         r = msg.rate
@@ -73,7 +75,7 @@ class SyncCtrl:
         for name in self.t_p_sys:
             t_p_sys += self.t_p_sys[name]
             t_p_bag += self.t_p_bag[name]
-            error_p += self.error_p[name]
+            error_p += math.fabs(self.error_p[name])
             if min_t_bag > self.t_bag[name]:
                 min_t_bag = self.t_bag[name]
             if max_t_bag < self.t_bag[name]:

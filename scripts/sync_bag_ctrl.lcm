@@ -1,5 +1,5 @@
 
-struct TimeSync {
+struct PlayerStats {
     int32_t drone_id;
     double system_time;
     double played_time_sys;
@@ -14,4 +14,11 @@ struct SyncBagCtrl {
     float duration;
     float rate;
     double system_time;
+}
+
+
+struct TimeSync {
+    int32_t drone_id;
+    double system_time0;
+    double bag_time0;
 }

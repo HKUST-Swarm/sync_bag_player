@@ -8,6 +8,7 @@ import time
 import lcm
 from SyncBagCtrl import *
 from TimeSync import *
+from PlayerStats import *
 import threading
 
 class SyncBagPlayer:
@@ -23,9 +24,11 @@ class SyncBagPlayer:
         self.is_bag_playing = autostart
         self.is_terminated = False
         self.drone_id = drone_id
+        self.autostart = autostart
 
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
         self.ctrl_sub = self.lc.subscribe("CTRL_PLAYER", self.sync_bag_ctrl_handle)
+        self.ctrl_sub = self.lc.subscribe("TIME_SYNC_CTRL", self.handle_time_sync)
         self.t = threading.Thread(target = self.lcm_thread)
         self.t.start()
         
@@ -54,7 +57,6 @@ class SyncBagPlayer:
             print("[SyncBagPlayer] Player paused by LCM.")
             self.is_bag_playing = False
         
-    
     def prepare_publishers(self):
         bag = self.bag
         topics = bag.get_type_and_topic_info()[1]
@@ -69,15 +71,28 @@ class SyncBagPlayer:
         self.publishers = publishers
         self.clock_pub = rospy.Publisher("/clock", Clock, queue_size=10)
     
-    def send_time_sync(self, tsys, tplayedsys, tplayedbag, t_bag):
-        t_sync = TimeSync()
+    def send_player_stats(self, tsys, tplayedsys, tplayedbag, t_bag):
+        t_sync = PlayerStats()
         t_sync.system_time = tsys
         t_sync.played_time_sys = tplayedsys
         t_sync.played_time_bag = tplayedbag
         t_sync.rate = self.rate
         t_sync.bag_time_abs = t_bag.to_sec()
         t_sync.drone_id = self.drone_id
-        self.lc.publish("PLAYERS_SYNC", t_sync.encode())
+        self.lc.publish("PLAYER_STATS", t_sync.encode())
+
+    def send_time_sync(self, play_t0_sys, bag_t0):
+        t_sync = TimeSync()
+        t_sync.drone_id = self.drone_id
+        t_sync.system_time0 = play_t0_sys
+        t_sync.bag_time0 = bag_t0
+        self.lc.publish("TIME_SYNC_CTRL", t_sync.encode())
+    
+    def handle_time_sync(self, channel, msg):
+        msg = TimeSync.decode(msg)
+        if self.bag_t0 > msg.bag_time0:
+            self.bag_t0 = msg.bag_time0
+        print("[SyncBagPlayer] Updated SYS_T0", self.play_t0_sys, "BAG_T0", self.bag_t0, "Start bag", self.start_bag_duration)
 
     def play(self):
         count = 0
@@ -88,17 +103,18 @@ class SyncBagPlayer:
                 time.sleep(0.001)
                 continue
             try:
-                t_system = time.time()
                 topic, msg, t_bag  = next(all_msgs)
+                t_system = time.time()
                
                 if self.play_t0_sys is None:
                     self.play_t0_sys = t_system
                 if self.bag_t0 is None:
-                    self.bag_t0 = t_bag
+                    self.bag_t0 = t_bag.to_sec()
                     print("[SyncBagPlayer] SYS_T0", self.play_t0_sys, "BAG_T0", t_bag.to_sec(), "Now", t_system , "Start bag", self.start_bag_duration)
+                    self.send_time_sync(self.play_t0_sys, t_bag.to_sec())
 
                 t_played_time_sys = t_system - self.play_t0_sys
-                t_bag_played = (t_bag - self.bag_t0).to_sec() - self.start_bag_duration
+                t_bag_played = t_bag.to_sec() - self.bag_t0 - self.start_bag_duration
 
                 if t_bag_played < 0:
                     continue
@@ -108,7 +124,7 @@ class SyncBagPlayer:
                     t_played_time_sys = t_system - self.play_t0_sys
                     time.sleep(0.0001)
 
-                self.send_time_sync(t_system, t_played_time_sys, t_bag_played, t_bag)
+                self.send_player_stats(t_system, t_played_time_sys, t_bag_played, t_bag)
 
                 self.publishers[topic].publish(msg)
                 sim_clock = Clock()
@@ -117,7 +133,10 @@ class SyncBagPlayer:
                 if count % 100 == 0:
                     t_ = (time.time()- self.play_t0_sys)*self.rate
                     progress = t_ / self.total_time * 100
-                    print("Time {:5.2f}/{:5.2f} Progress {:3.2f}% Count {}".format(t_, self.total_time, progress, count), end="\r")
+                    if self.autostart:
+                        print("Time {:5.2f}/{:5.2f} Progress {:3.2f}% Count {}".format(t_, self.total_time, progress, count), end="\n")
+                    else:
+                        print("Time {:5.2f}/{:5.2f} Progress {:3.2f}% Count {}".format(t_, self.total_time, progress, count), end="\r")
                     sys.stdout.flush()
                 count += 1
             except Exception as e:
