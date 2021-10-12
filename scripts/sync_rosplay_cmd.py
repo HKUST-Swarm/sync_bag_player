@@ -11,7 +11,10 @@ from pynput.keyboard import Key, Listener
 import threading
 
 class SyncCtrl:
-    def __init__(self):
+    def __init__(self, rate=1.0, start_t = 0, duration=1000000):
+        self.rate = rate
+        self.start_t = start_t
+        self.duration = duration
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
         self.sync_sub = self.lc.subscribe("PLAYERS_SYNC", self.time_sync_handle)
         self.is_terminated = False
@@ -29,7 +32,7 @@ class SyncCtrl:
 
     def work(self):
         self.start()
-        while True:
+        while not self.is_terminated:
             try:
                 k = readchar.readkey()
                 if k == "q":
@@ -49,6 +52,9 @@ class SyncCtrl:
         ctrl = SyncBagCtrl()
         ctrl.cmd = 1
         ctrl.system_time = time.time()
+        ctrl.duration = self.duration
+        ctrl.rate = self.rate
+        ctrl.start_t = self.start_t
         self.lc.publish("CTRL_PLAYER", ctrl.encode())
         print("[SyncCtrl] Start bag play")
         
@@ -59,7 +65,6 @@ class SyncCtrl:
         self.lc.publish("CTRL_PLAYER", ctrl.encode())
         self.is_terminated = True
         time.sleep(0.1)
-        exit()
 
     def pause(self):
         ctrl = SyncBagCtrl()

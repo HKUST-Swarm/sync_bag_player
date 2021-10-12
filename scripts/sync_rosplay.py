@@ -38,6 +38,9 @@ class SyncBagPlayer:
         if msg.cmd == 1:
             self.is_bag_playing = True
             self.play_t0_sys = msg.system_time
+            self.duration = msg.duration
+            self.rate = msg.rate
+            self.start_bag_duration = msg.start_t
         elif msg.cmd < 0:
             print("[SyncBagPlayer] Player cancelled by LCM, exiting.")
             self.is_bag_playing = False

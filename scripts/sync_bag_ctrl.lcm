@@ -8,9 +8,8 @@ struct TimeSync {
 
 struct SyncBagCtrl {
     int32_t cmd;
-    float t0;
-    float param1;
-    float param2;
-    float param3;
+    float start_t;
+    float duration;
+    float rate;
     double system_time;
 }
