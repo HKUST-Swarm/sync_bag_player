@@ -141,7 +141,7 @@ class SyncBagPlayer:
                 count += 1
             except Exception as e:
                 print("[SyncBagPlayer] Exiting.")
-                raise e
+                return
 
 if __name__ == "__main__":
     import argparse
@@ -174,3 +174,4 @@ if __name__ == "__main__":
     rospy.init_node("player")
     player = SyncBagPlayer(args.path, args.syst, args.start, args.rate, args.autostart, args.drone_id)
     player.play()
+    print("Player exiting...")

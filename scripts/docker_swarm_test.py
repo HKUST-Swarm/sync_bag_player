@@ -41,16 +41,17 @@ def launch_docker(name, config, dataset_path):
     p_docker = subprocess.Popen(f'terminator -T {name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
     return p_docker
 
-def run_swarm_docker_evaluation(config):
+def run_swarm_docker_evaluation(config, enable_zsh):
     pids = {}
     pids_zsh = {}
     for name in config["dataset"]:
         pids[name] = launch_docker(name, config, pathlib.Path(args.config_path).parent.resolve())
 
-    time.sleep(1.0)
-    for name in config["dataset"]:
-        cmd = f'terminator -T {name}_zsh -x docker exec -it {name} /bin/zsh'
-        pids_zsh[name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
+    if enable_zsh:
+        time.sleep(1.0)
+        for name in config["dataset"]:
+            cmd = f'terminator -T {name}_zsh -x docker exec -it {name} /bin/zsh'
+            pids_zsh[name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     
     return pids, pids_zsh
 
@@ -59,11 +60,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Docker swarm evaluation tool.')
     parser.add_argument('config_path', metavar='config_path',
                     help='config_path for evaluation')
-    
+    parser.add_argument("-z", '--zsh', action='store_true', help="Open additional zsh.")
+
     args = parser.parse_args()
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
-    pids, _ = run_swarm_docker_evaluation(config)
+    pids, _ = run_swarm_docker_evaluation(config, args.zsh)
 
     try:
         time.sleep(10)
@@ -71,7 +73,8 @@ if __name__ == '__main__':
         sync_ctrl.work()
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
-    
+
+    time.sleep(3)
     for p in pids:
+        pids[p].terminate()
         kill_docker(p)
-        pids[p].kill()
