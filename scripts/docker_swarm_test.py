@@ -12,12 +12,14 @@ def kill_docker(name):
     cmd = f"docker container kill {name}"
     system(cmd)
 
-def launch_docker(name, config, dataset_path):
+def launch_docker(name, config, config_path):
     print(f"Launching docker {name}")
+    dataset_path = pathlib.Path(config_path).parent.resolve()
     current_dir = pathlib.Path(__file__).parent.resolve()
+
     _id = config["dataset"][name]["id"]
     workspace = config["workspace"]
-    output_path = config["output_path"] + name
+    output_path = dataset_path.joinpath(config["output_path"] + "/" + name)
     swarm_config_path = dataset_path.joinpath(config["dataset"][name]["config_path"])
     bag_path = config["dataset"][name]["bag"]
     container_name = config["container_name"]
@@ -30,22 +32,22 @@ def launch_docker(name, config, dataset_path):
 -v /home/xuhao/source/:/home/xuhao/source/ \
 -v {output_path}:/root/output/ \
 -v {swarm_config_path}:/root/SwarmConfig/ \
+-v {config_path}:/root/config.yaml \
 -v {dataset_path}:/root/bags/ \
 -v {entry_point_path}:/root/entry_point.sh \
--v {docker_entry_point}:/root/docker_entrypoint.sh \
 -v {docker_entry_point}:/root/docker_entrypoint.sh \
 --env='DISPLAY' --volume='/tmp/.X11-unix:/tmp/.X11-unix:rw' \
 --privileged \
 {container_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path}"""
-    # print(cmd)
+    print(cmd)
     p_docker = subprocess.Popen(f'terminator -T {name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
     return p_docker
 
-def run_swarm_docker_evaluation(config, enable_zsh):
+def run_swarm_docker_evaluation(config, enable_zsh, config_path):
     pids = {}
     pids_zsh = {}
     for name in config["dataset"]:
-        pids[name] = launch_docker(name, config, pathlib.Path(args.config_path).parent.resolve())
+        pids[name] = launch_docker(name, config, config_path)
 
     if enable_zsh:
         time.sleep(1.0)
@@ -65,7 +67,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
-    pids, _ = run_swarm_docker_evaluation(config, args.zsh)
+    pids, _ = run_swarm_docker_evaluation(config, args.zsh, args.config_path)
 
     try:
         time.sleep(10)

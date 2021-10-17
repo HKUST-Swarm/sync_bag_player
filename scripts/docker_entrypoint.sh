@@ -6,6 +6,6 @@ export DRONE_ID=$1
 route add -net 224.0.0.0 netmask 240.0.0.0 dev eth0
 chmod a+x /root/entry_point.sh
 source /root/entry_point.sh &
-rosrun sync_bag_player sync_rosplay.py --path $2  --drone-id $1
+rosrun sync_bag_player sync_rosplay.py --path $2  --drone-id $1 --config-path /root/config.yaml
 pkill -TERM record
-sleep 10
+sleep 10000

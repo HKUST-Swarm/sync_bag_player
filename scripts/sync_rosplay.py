@@ -10,11 +10,11 @@ from SyncBagCtrl import *
 from TimeSync import *
 from PlayerStats import *
 import threading
+import yaml
 
 class SyncBagPlayer:
-    def __init__(self, bag_path, play_t0_sys=None, start = 0, rate=1.0, autostart=False, drone_id = 1):
+    def __init__(self, bag_path, play_t0_sys=None, start = 0, rate=1.0, autostart=False, drone_id = 1, exclude_topics=set()):
         self.bag = rosbag.Bag(bag_path)
-        self.prepare_publishers()
         self.play_t0_sys = play_t0_sys
         self.bag_t0 = None
         self.r = rospy.Rate(10000)
@@ -25,14 +25,19 @@ class SyncBagPlayer:
         self.is_terminated = False
         self.drone_id = drone_id
         self.autostart = autostart
+        self.exclude_topics = exclude_topics
+
 
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
         self.ctrl_sub = self.lc.subscribe("CTRL_PLAYER", self.sync_bag_ctrl_handle)
         self.ctrl_sub = self.lc.subscribe("TIME_SYNC_CTRL", self.handle_time_sync)
         self.t = threading.Thread(target = self.lcm_thread)
         self.t.start()
-        
+        self.prepare_publishers()
     
+        time.sleep(0.5)    
+        self.send_time_sync(self.play_t0_sys, self.bag_t0)
+
     def lcm_thread(self):
         while not self.is_terminated:
             self.lc.handle_timeout(10)
@@ -63,11 +68,15 @@ class SyncBagPlayer:
         publishers = {}
         #Prepare publishers for bag
         for topic, msg, t in bag.read_messages():
+            if self.bag_t0 is None:
+                self.bag_t0 = t.to_sec()
             if topic not in publishers:
                 publishers[topic] = rospy.Publisher(topic, type(msg), queue_size=10)
             if len(topics) == len(publishers):
                 break
-        print("[SyncBagPlayer] Topics", publishers.keys())
+        print("[SyncBagPlayer] Topics", publishers.keys(), "Excluded", self.exclude_topics)
+        print("[SyncBagPlayer] SYS_T0", self.play_t0_sys, "BAG_T0", self.bag_t0, "Start bag", self.start_bag_duration)
+
         self.publishers = publishers
         self.clock_pub = rospy.Publisher("/clock", Clock, queue_size=10)
     
@@ -104,19 +113,16 @@ class SyncBagPlayer:
                 continue
             try:
                 topic, msg, t_bag  = next(all_msgs)
+
                 t_system = time.time()
                
                 if self.play_t0_sys is None:
                     self.play_t0_sys = t_system
-                if self.bag_t0 is None:
-                    self.bag_t0 = t_bag.to_sec()
-                    print("[SyncBagPlayer] SYS_T0", self.play_t0_sys, "BAG_T0", t_bag.to_sec(), "Now", t_system , "Start bag", self.start_bag_duration)
-                    self.send_time_sync(self.play_t0_sys, t_bag.to_sec())
 
                 t_played_time_sys = t_system - self.play_t0_sys
                 t_bag_played = t_bag.to_sec() - self.bag_t0 - self.start_bag_duration
 
-                if t_bag_played < 0:
+                if t_bag_played < 0 or topic in self.exclude_topics:
                     continue
 
                 while t_played_time_sys*self.rate < t_bag_played:
@@ -169,9 +175,24 @@ if __name__ == "__main__":
     parser.add_argument('--autostart', type=bool,
                     default=False,
                     help='automatics start play at spec system time')
-
+    
+    parser.add_argument('--config-path', type=str,
+                    default="",
+                    help='Config path')
+    
+    
     args = parser.parse_args()
+
+    exclude_topics = set()
+    try:
+        with open(args.config_path, "r") as stream:
+            config = yaml.safe_load(stream)
+            for topic in config["exclude_topics"]:
+                exclude_topics.add(topic)
+    except:
+        print("Error while reading exclude topics")
+
     rospy.init_node("player")
-    player = SyncBagPlayer(args.path, args.syst, args.start, args.rate, args.autostart, args.drone_id)
+    player = SyncBagPlayer(args.path, args.syst, args.start, args.rate, args.autostart, args.drone_id, exclude_topics)
     player.play()
     print("Player exiting...")
