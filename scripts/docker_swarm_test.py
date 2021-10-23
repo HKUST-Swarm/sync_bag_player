@@ -7,6 +7,7 @@ PROJECT_PATH = "~"
 import pathlib
 import time
 from sync_rosplay_cmd import SyncCtrl
+import random
 
 def kill_docker(name):
     cmd = f"docker container kill {name}"
@@ -22,11 +23,12 @@ def launch_docker(name, config, config_path):
     output_path = dataset_path.joinpath(config["output_path"] + "/" + name)
     swarm_config_path = dataset_path.joinpath(config["dataset"][name]["config_path"])
     bag_path = config["dataset"][name]["bag"]
-    container_name = config["container_name"]
+    image_name = config["image_name"]
+    container_name = name
     entry_point_path = dataset_path.joinpath(config["entry_point"])
     docker_entry_point = current_dir.joinpath("docker_entrypoint.sh")
 
-    cmd = f"""docker run --name {name} --gpus all --rm -it \
+    cmd = f"""docker run --name {container_name} --gpus all --rm -it \
 -v {workspace}:/root/swarm_ws/ \
 -v {workspace}:/home/xuhao/swarm_ws/ \
 -v /home/xuhao/source/:/home/xuhao/source/ \
@@ -38,21 +40,21 @@ def launch_docker(name, config, config_path):
 -v {docker_entry_point}:/root/docker_entrypoint.sh \
 --env='DISPLAY' --volume='/tmp/.X11-unix:/tmp/.X11-unix:rw' \
 --privileged \
-{container_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path}"""
-    print(cmd)
+{image_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path}"""
+    # print(cmd)
     p_docker = subprocess.Popen(f'terminator -T {name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
-    return p_docker
+    return p_docker, container_name
 
 def run_swarm_docker_evaluation(config, enable_zsh, config_path):
     pids = {}
     pids_zsh = {}
     for name in config["dataset"]:
-        pids[name] = launch_docker(name, config, config_path)
+        pids[name], container_name = launch_docker(name, config, config_path)
 
     if enable_zsh:
         time.sleep(1.0)
         for name in config["dataset"]:
-            cmd = f'terminator -T {name}_zsh -x docker exec -it {name} /bin/zsh'
+            cmd = f'terminator -T {container_name}_zsh -x docker exec -it {name} /bin/zsh'
             pids_zsh[name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     
     return pids, pids_zsh

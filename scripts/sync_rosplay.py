@@ -124,6 +124,9 @@ class SyncBagPlayer:
 
                 if t_bag_played < 0 or topic in self.exclude_topics:
                     continue
+                if t_bag_played > self.duration:
+                    print(f"[SyncBagPlayer] Finish {t_bag_played}. Exiting.")
+                    return
 
                 while t_played_time_sys*self.rate < t_bag_played:
                     t_system = time.time()
