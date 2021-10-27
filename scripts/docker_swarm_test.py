@@ -25,7 +25,18 @@ def launch_docker(name, config, config_path):
     bag_path = config["dataset"][name]["bag"]
     image_name = config["image_name"]
     container_name = name
-    entry_point_path = dataset_path.joinpath(config["entry_point"])
+    if "entry_point" in config:
+        entry_point_path = dataset_path.joinpath(config["entry_point"])
+    else:
+        if "entry_point_script" in config:
+            entry_point_path = (f"/tmp/{container_name}_entry_point.sh")
+            with open(entry_point_path, "w") as stream:
+                stream.write(config["entry_point_script"])
+                stream.close()
+        else:
+            print("No entry_point or entrypoint_script, exiting...")
+            exit(-1)
+
     docker_entry_point = current_dir.joinpath("docker_entrypoint.sh")
 
     cmd = f"""docker run --name {container_name} --gpus all --rm -it \
