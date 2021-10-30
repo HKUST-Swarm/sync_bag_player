@@ -143,9 +143,9 @@ class SyncBagPlayer:
                     t_ = (time.time()- self.play_t0_sys)*self.rate
                     progress = t_ / self.total_time * 100
                     if self.autostart:
-                        print("Time {:5.2f}/{:5.2f} Progress {:3.2f}% Count {}".format(t_, self.total_time, progress, count), end="\n")
-                    else:
                         print("Time {:5.2f}/{:5.2f} Progress {:3.2f}% Count {}".format(t_, self.total_time, progress, count), end="\r")
+                    else:
+                        print("Time {:5.2f}/{:5.2f} Progress {:3.2f}% Count {}".format(t_, self.total_time, progress, count), end="\n")
                     sys.stdout.flush()
                 count += 1
             except Exception as e:
