@@ -13,7 +13,7 @@ import threading
 import yaml
 
 class SyncBagPlayer:
-    def __init__(self, bag_path, play_t0_sys=None, start = 0, rate=1.0, autostart=False, drone_id = 1, exclude_topics=set()):
+    def __init__(self, bag_path, play_t0_sys=None, start = 0, rate=1.0, autostart=False, drone_id = 1, token=0, exclude_topics=set()):
         self.bag = rosbag.Bag(bag_path)
         self.play_t0_sys = play_t0_sys
         self.bag_t0 = None
@@ -26,6 +26,7 @@ class SyncBagPlayer:
         self.drone_id = drone_id
         self.autostart = autostart
         self.exclude_topics = exclude_topics
+        self.token = token
 
 
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
@@ -35,7 +36,7 @@ class SyncBagPlayer:
         self.t.start()
         self.prepare_publishers()
     
-        time.sleep(0.5)    
+        time.sleep(2.0)    
         self.send_time_sync(self.play_t0_sys, self.bag_t0)
 
     def lcm_thread(self):
@@ -44,6 +45,8 @@ class SyncBagPlayer:
     
     def sync_bag_ctrl_handle(self, channel, msg):
         msg = SyncBagCtrl.decode(msg)
+        if msg.token != self.token:
+            return
         if msg.cmd == 1:
             self.is_bag_playing = True
             self.play_t0_sys = msg.system_time
@@ -88,6 +91,7 @@ class SyncBagPlayer:
         t_sync.rate = self.rate
         t_sync.bag_time_abs = t_bag.to_sec()
         t_sync.drone_id = self.drone_id
+        t_sync.token = self.token
         self.lc.publish("PLAYER_STATS", t_sync.encode())
 
     def send_time_sync(self, play_t0_sys, bag_t0):
@@ -95,10 +99,14 @@ class SyncBagPlayer:
         t_sync.drone_id = self.drone_id
         t_sync.system_time0 = play_t0_sys
         t_sync.bag_time0 = bag_t0
+        t_sync.token = self.token
+
         self.lc.publish("TIME_SYNC_CTRL", t_sync.encode())
     
     def handle_time_sync(self, channel, msg):
         msg = TimeSync.decode(msg)
+        if msg.token != self.token:
+            return
         if self.bag_t0 > msg.bag_time0:
             self.bag_t0 = msg.bag_time0
         print("[SyncBagPlayer] Updated SYS_T0", self.play_t0_sys, "BAG_T0", self.bag_t0, "Start bag", self.start_bag_duration)
@@ -182,7 +190,10 @@ if __name__ == "__main__":
     parser.add_argument('--config-path', type=str,
                     default="",
                     help='Config path')
-    
+
+    parser.add_argument('--token', type=int,
+                    default=0,
+                    help='Control token')
     
     args = parser.parse_args()
 
@@ -196,6 +207,6 @@ if __name__ == "__main__":
         print("Error while reading exclude topics")
 
     rospy.init_node("player")
-    player = SyncBagPlayer(args.path, args.syst, args.start, args.rate, args.autostart, args.drone_id, exclude_topics)
+    player = SyncBagPlayer(args.path, args.syst, args.start, args.rate, args.autostart, args.drone_id, args.token, exclude_topics)
     player.play()
     print("Player exiting...")

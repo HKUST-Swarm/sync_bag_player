@@ -8,23 +8,25 @@ import pathlib
 import time
 from sync_rosplay_cmd import SyncCtrl
 import random
+import random
+from datetime import datetime
 
 def kill_docker(name):
     cmd = f"docker container kill {name}"
     system(cmd)
 
-def launch_docker(name, config, config_path):
+def launch_docker(name, config, config_path, token):
     print(f"Launching docker {name}")
     dataset_path = pathlib.Path(config_path).parent.resolve()
     current_dir = pathlib.Path(__file__).parent.resolve()
 
     _id = config["dataset"][name]["id"]
     workspace = config["workspace"]
-    output_path = dataset_path.joinpath(config["output_path"] + "/" + name)
+    output_path = dataset_path.joinpath(config["output_path"] + f"/swarm{_id}")
     swarm_config_path = dataset_path.joinpath(config["dataset"][name]["config_path"])
     bag_path = config["dataset"][name]["bag"]
     image_name = config["image_name"]
-    container_name = name
+    container_name = f"{name}_{token}"
     if "entry_point" in config:
         entry_point_path = dataset_path.joinpath(config["entry_point"])
     else:
@@ -51,40 +53,43 @@ def launch_docker(name, config, config_path):
 -v {docker_entry_point}:/root/docker_entrypoint.sh \
 --env='DISPLAY' --volume='/tmp/.X11-unix:/tmp/.X11-unix:rw' \
 --privileged \
-{image_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path}"""
-    # print(cmd)
-    p_docker = subprocess.Popen(f'terminator -T {name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
+{image_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path} {token}"""
+    print(cmd)
+    p_docker = subprocess.Popen(f'terminator -T {container_name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
     return p_docker, container_name
 
-def run_swarm_docker_evaluation(config, enable_zsh, config_path):
+def run_swarm_docker_evaluation(config, enable_zsh, config_path, token):
     pids = {}
     pids_zsh = {}
     for name in config["dataset"]:
-        pids[name], container_name = launch_docker(name, config, config_path)
+        pid, container_name = launch_docker(name, config, config_path, token)
+        pids[container_name] = pid
 
     if enable_zsh:
         time.sleep(1.0)
         for name in config["dataset"]:
-            cmd = f'terminator -T {container_name}_zsh -x docker exec -it {name} /bin/zsh'
-            pids_zsh[name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
+            cmd = f'terminator -T {container_name}_zsh -x docker exec -it {container_name} /bin/zsh'
+            pids_zsh[container_name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     
     return pids, pids_zsh
 
 if __name__ == '__main__':
+    random.seed(datetime.now())
     print("Start swarm docker test")
     parser = argparse.ArgumentParser(description='Docker swarm evaluation tool.')
     parser.add_argument('config_path', metavar='config_path',
                     help='config_path for evaluation')
     parser.add_argument("-z", '--zsh', action='store_true', help="Open additional zsh.")
 
+    token = random.randint(0, 1000000)
     args = parser.parse_args()
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
-    pids, _ = run_swarm_docker_evaluation(config, args.zsh, args.config_path)
+    pids, _ = run_swarm_docker_evaluation(config, args.zsh, args.config_path, token)
 
     try:
-        time.sleep(10)
-        sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], start_delay=1.0)
+        time.sleep(12)
+        sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], token=token, start_delay=1.0)
         sync_ctrl.work()
     except KeyboardInterrupt:
         print("KeyboardInterrupt")

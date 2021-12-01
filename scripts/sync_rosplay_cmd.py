@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 PLAY_DELAY = 0.1
 class SyncCtrl:
-    def __init__(self, rate=1.0, t_start = 0, duration=1000000, start_delay =PLAY_DELAY):
+    def __init__(self, rate=1.0, t_start = 0, duration=1000000, token=0,start_delay =PLAY_DELAY):
         self.rate = rate
         self.start_t = t_start
         self.duration = duration
@@ -25,6 +25,7 @@ class SyncCtrl:
         self.pause_start = None
         self.t_sys_start = time.time()
         self.start_delay = start_delay
+        self.token = token
 
         self.t_p_sys = {}
         self.t_p_bag = {}
@@ -39,6 +40,8 @@ class SyncCtrl:
         
     def time_sync_handle(self, channel, msg):
         msg = PlayerStats.decode(msg)
+        if msg.token != self.token:
+            return
         self.t_p_sys[msg.drone_id] = msg.played_time_sys
         self.t_p_bag[msg.drone_id] = msg.played_time_bag
         r = msg.rate
@@ -102,12 +105,14 @@ class SyncCtrl:
         ctrl.duration = self.duration
         ctrl.rate = self.rate
         ctrl.start_t = self.start_t
+        ctrl.token = self.token
         self.lc.publish("CTRL_PLAYER", ctrl.encode())
         print(f"[SyncCtrl] Start bag play rate {ctrl.rate:.1f}s start {ctrl.start_t:.1f}s duration {ctrl.duration:.1f}s. Ctrl-C or q to exit. Space to pause.")
         
 
     def stop(self):
         ctrl = SyncBagCtrl()
+        ctrl.token = self.token
         ctrl.cmd = -1
         self.lc.publish("CTRL_PLAYER", ctrl.encode())
         self.is_terminated = True
@@ -118,12 +123,14 @@ class SyncCtrl:
     def pause(self):
         if not self.is_paused:
             ctrl = SyncBagCtrl()
+            ctrl.token = self.token
             ctrl.cmd = 0
             self.lc.publish("CTRL_PLAYER", ctrl.encode())
             self.pause_start = time.time()
             self.is_paused = True
         else:
             ctrl = SyncBagCtrl()
+            ctrl.token = self.token
             ctrl.cmd = 2
             ctrl.system_time = self.t_sys_start + PLAY_DELAY + time.time() - self.pause_start
             self.lc.publish("CTRL_PLAYER", ctrl.encode())

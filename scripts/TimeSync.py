@@ -10,16 +10,17 @@ except ImportError:
 import struct
 
 class TimeSync(object):
-    __slots__ = ["drone_id", "system_time0", "bag_time0"]
+    __slots__ = ["drone_id", "system_time0", "bag_time0", "token"]
 
-    __typenames__ = ["int32_t", "double", "double"]
+    __typenames__ = ["int32_t", "double", "double", "int32_t"]
 
-    __dimensions__ = [None, None, None]
+    __dimensions__ = [None, None, None, None]
 
     def __init__(self):
         self.drone_id = 0
         self.system_time0 = 0.0
         self.bag_time0 = 0.0
+        self.token = 0
 
     def encode(self):
         buf = BytesIO()
@@ -28,7 +29,7 @@ class TimeSync(object):
         return buf.getvalue()
 
     def _encode_one(self, buf):
-        buf.write(struct.pack(">idd", self.drone_id, self.system_time0, self.bag_time0))
+        buf.write(struct.pack(">iddi", self.drone_id, self.system_time0, self.bag_time0, self.token))
 
     def decode(data):
         if hasattr(data, 'read'):
@@ -42,13 +43,13 @@ class TimeSync(object):
 
     def _decode_one(buf):
         self = TimeSync()
-        self.drone_id, self.system_time0, self.bag_time0 = struct.unpack(">idd", buf.read(20))
+        self.drone_id, self.system_time0, self.bag_time0, self.token = struct.unpack(">iddi", buf.read(24))
         return self
     _decode_one = staticmethod(_decode_one)
 
     def _get_hash_recursive(parents):
         if TimeSync in parents: return 0
-        tmphash = (0x88489bab2561ce85) & 0xffffffffffffffff
+        tmphash = (0xa2675080f628d6b5) & 0xffffffffffffffff
         tmphash  = (((tmphash<<1)&0xffffffffffffffff) + (tmphash>>63)) & 0xffffffffffffffff
         return tmphash
     _get_hash_recursive = staticmethod(_get_hash_recursive)
