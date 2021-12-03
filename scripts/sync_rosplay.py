@@ -28,7 +28,6 @@ class SyncBagPlayer:
         self.exclude_topics = exclude_topics
         self.token = token
 
-
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
         self.ctrl_sub = self.lc.subscribe("CTRL_PLAYER", self.sync_bag_ctrl_handle)
         self.ctrl_sub = self.lc.subscribe("TIME_SYNC_CTRL", self.handle_time_sync)
@@ -93,7 +92,16 @@ class SyncBagPlayer:
         t_sync.drone_id = self.drone_id
         t_sync.token = self.token
         self.lc.publish("PLAYER_STATS", t_sync.encode())
-
+    
+    def send_end_stats(self):
+        print("\n\nSending end stats\n")
+        t_sync = PlayerStats()
+        t_sync.played_time_bag = -1
+        t_sync.rate = self.rate
+        t_sync.drone_id = self.drone_id
+        t_sync.token = self.token
+        self.lc.publish("PLAYER_STATS", t_sync.encode())
+    
     def send_time_sync(self, play_t0_sys, bag_t0):
         t_sync = TimeSync()
         t_sync.drone_id = self.drone_id
@@ -134,6 +142,7 @@ class SyncBagPlayer:
                     continue
                 if t_bag_played > self.duration:
                     print(f"[SyncBagPlayer] Finish {t_bag_played}. Exiting.")
+                    self.send_end_stats()
                     return
 
                 while t_played_time_sys*self.rate < t_bag_played:
@@ -157,8 +166,10 @@ class SyncBagPlayer:
                     sys.stdout.flush()
                 count += 1
             except Exception as e:
-                print("[SyncBagPlayer] Exiting.")
+                print("[SyncBagPlayer] Exiting.", e)
+                self.send_end_stats()
                 return
+        self.send_end_stats()
 
 if __name__ == "__main__":
     import argparse
@@ -209,4 +220,4 @@ if __name__ == "__main__":
     rospy.init_node("player")
     player = SyncBagPlayer(args.path, args.syst, args.start, args.rate, args.autostart, args.drone_id, args.token, exclude_topics)
     player.play()
-    print("Player exiting...")
+    print("Exiting...")

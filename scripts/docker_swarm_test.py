@@ -39,7 +39,10 @@ def launch_docker(name, config, config_path, token):
             print("No entry_point or entrypoint_script, exiting...")
             exit(-1)
 
-    docker_entry_point = current_dir.joinpath("docker_entrypoint.sh")
+    if bag_path == "":
+        docker_entry_point = current_dir.joinpath("docker_entrypoint_sim.sh")
+    else:
+        docker_entry_point = current_dir.joinpath("docker_entrypoint.sh")
 
     cmd = f"""docker run --name {container_name} --gpus all --rm -it \
 -v {workspace}:/root/swarm_ws/ \
@@ -80,6 +83,7 @@ if __name__ == '__main__':
     parser.add_argument('config_path', metavar='config_path',
                     help='config_path for evaluation')
     parser.add_argument("-z", '--zsh', action='store_true', help="Open additional zsh.")
+    parser.add_argument("-n", '--nointeraction', action='store_true', help="No interaction")
 
     token = random.randint(0, 1000000)
     args = parser.parse_args()
@@ -89,7 +93,8 @@ if __name__ == '__main__':
 
     try:
         time.sleep(12)
-        sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], token=token, start_delay=1.0)
+        sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], 
+            token=token, start_delay=1.0, drone_num=len(config["dataset"]), enable_interaction=not args.nointeraction)
         sync_ctrl.work()
     except KeyboardInterrupt:
         print("KeyboardInterrupt")

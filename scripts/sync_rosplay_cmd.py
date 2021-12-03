@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 PLAY_DELAY = 0.1
 class SyncCtrl:
-    def __init__(self, rate=1.0, t_start = 0, duration=1000000, token=0,start_delay =PLAY_DELAY):
+    def __init__(self, rate=1.0, t_start = 0, duration=1000000, token=0,start_delay =PLAY_DELAY, drone_num=1, enable_interaction=True):
         self.rate = rate
         self.start_t = t_start
         self.duration = duration
@@ -26,22 +26,34 @@ class SyncCtrl:
         self.t_sys_start = time.time()
         self.start_delay = start_delay
         self.token = token
+        self.drone_num = drone_num
+        self.stopped_num = 0
 
         self.t_p_sys = {}
         self.t_p_bag = {}
         self.error_p = {}
         self.t_bag = {}
+        self.enable_interaction = enable_interaction
 
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
         self.sync_sub = self.lc.subscribe("PLAYER_STATS", self.time_sync_handle)
         self.is_terminated = False
         self.t = threading.Thread(target = self.lcm_thread)
         self.t.start()
+
+        print("Drone num ", self.drone_num)
         
     def time_sync_handle(self, channel, msg):
         msg = PlayerStats.decode(msg)
         if msg.token != self.token:
             return
+        if msg.played_time_bag < -0.99:
+            print("Recv end stats")
+            self.stopped_num += 1
+            if self.stopped_num >= self.drone_num:
+                self.stop()
+            return
+
         self.t_p_sys[msg.drone_id] = msg.played_time_sys
         self.t_p_bag[msg.drone_id] = msg.played_time_bag
         r = msg.rate
@@ -51,18 +63,24 @@ class SyncCtrl:
 
     def work(self):
         self.start()
+        if self.enable_interaction:
+            print("interaction is enabled")
+
         while not self.is_terminated:
             try:
-                k = readchar.readkey()
-                if k == "q" or k =="\x03":
-                    self.stop()
-                elif k == " ":
-                    self.pause()
-                else:
-                    print(k)
+                time.sleep(0.1)
+                if self.enable_interaction:
+                    k = readchar.readkey()
+                    if k == "q" or k =="\x03":
+                        self.stop()
+                    elif k == " ":
+                        self.pause()
+                    else:
+                        print(k)
             except Exception as e:
                 self.stop()
                 raise e
+        print("Finish rosbplay cmd")
 
     def statistics(self):
         status = "Playing"
