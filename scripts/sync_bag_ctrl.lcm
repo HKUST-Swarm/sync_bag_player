@@ -6,6 +6,7 @@ struct PlayerStats {
     double played_time_bag;
     double rate;
     double bag_time_abs;
+    int32_t token;
 }
 
 struct SyncBagCtrl {
@@ -14,6 +15,7 @@ struct SyncBagCtrl {
     float duration;
     float rate;
     double system_time;
+    int32_t token;
 }
 
 
@@ -21,4 +23,5 @@ struct TimeSync {
     int32_t drone_id;
     double system_time0;
     double bag_time0;
+    int32_t token;
 }

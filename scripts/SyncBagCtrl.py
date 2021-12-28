@@ -10,11 +10,11 @@ except ImportError:
 import struct
 
 class SyncBagCtrl(object):
-    __slots__ = ["cmd", "start_t", "duration", "rate", "system_time"]
+    __slots__ = ["cmd", "start_t", "duration", "rate", "system_time", "token"]
 
-    __typenames__ = ["int32_t", "float", "float", "float", "double"]
+    __typenames__ = ["int32_t", "float", "float", "float", "double", "int32_t"]
 
-    __dimensions__ = [None, None, None, None, None]
+    __dimensions__ = [None, None, None, None, None, None]
 
     def __init__(self):
         self.cmd = 0
@@ -22,6 +22,7 @@ class SyncBagCtrl(object):
         self.duration = 0.0
         self.rate = 0.0
         self.system_time = 0.0
+        self.token = 0
 
     def encode(self):
         buf = BytesIO()
@@ -30,7 +31,7 @@ class SyncBagCtrl(object):
         return buf.getvalue()
 
     def _encode_one(self, buf):
-        buf.write(struct.pack(">ifffd", self.cmd, self.start_t, self.duration, self.rate, self.system_time))
+        buf.write(struct.pack(">ifffdi", self.cmd, self.start_t, self.duration, self.rate, self.system_time, self.token))
 
     def decode(data):
         if hasattr(data, 'read'):
@@ -44,13 +45,13 @@ class SyncBagCtrl(object):
 
     def _decode_one(buf):
         self = SyncBagCtrl()
-        self.cmd, self.start_t, self.duration, self.rate, self.system_time = struct.unpack(">ifffd", buf.read(24))
+        self.cmd, self.start_t, self.duration, self.rate, self.system_time, self.token = struct.unpack(">ifffdi", buf.read(28))
         return self
     _decode_one = staticmethod(_decode_one)
 
     def _get_hash_recursive(parents):
         if SyncBagCtrl in parents: return 0
-        tmphash = (0x114477ab35c47253) & 0xffffffffffffffff
+        tmphash = (0xfbc9176aeaf6146) & 0xffffffffffffffff
         tmphash  = (((tmphash<<1)&0xffffffffffffffff) + (tmphash>>63)) & 0xffffffffffffffff
         return tmphash
     _get_hash_recursive = staticmethod(_get_hash_recursive)
