@@ -47,6 +47,7 @@ def launch_docker(name, config, config_path, token):
     cmd = f"""docker run --name {container_name} --gpus all --rm -it \
 -v {workspace}:/root/swarm_ws/ \
 -v {workspace}:/home/xuhao/swarm_ws/ \
+-v {workspace}:{workspace}/ \
 -v /home/xuhao/source/:/home/xuhao/source/ \
 -v {output_path}:/root/output/ \
 -v {swarm_config_path}:/root/SwarmConfig/ \
@@ -92,7 +93,11 @@ if __name__ == '__main__':
     pids, _ = run_swarm_docker_evaluation(config, args.zsh, args.config_path, token)
 
     try:
-        time.sleep(12)
+        if "start_latency" in config:
+            time.sleep(config["start_latency"])
+        else:
+            time.sleep(12)
+
         sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], 
             token=token, start_delay=1.0, drone_num=len(config["dataset"]), enable_interaction=not args.nointeraction)
         sync_ctrl.work()
