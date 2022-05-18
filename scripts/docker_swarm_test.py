@@ -47,7 +47,6 @@ def launch_docker(name, config, config_path, token):
     cmd = f"""docker run --name {container_name} --gpus all --rm -it \
 -v {workspace}:/root/swarm_ws/ \
 -v {workspace}:/home/xuhao/swarm_ws/ \
--v {workspace}:{workspace}/ \
 -v /home/xuhao/source/:/home/xuhao/source/ \
 -v {output_path}:/root/output/ \
 -v {swarm_config_path}:/root/SwarmConfig/ \

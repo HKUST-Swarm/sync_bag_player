@@ -1,5 +1,6 @@
 #!/bin/bash
-source /opt/ros/melodic/setup.bash
+source /root/.bashrc
+source /opt/ros/noetic/setup.bash
 source /root/swarm_ws/devel/setup.bash
 echo "Run bag replay for drone",$1, "with bag", $2
 export DRONE_ID=$1
