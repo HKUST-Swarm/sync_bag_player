@@ -43,11 +43,10 @@ def launch_docker(name, config, config_path, token):
         docker_entry_point = current_dir.joinpath("docker_entrypoint_sim.sh")
     else:
         docker_entry_point = current_dir.joinpath("docker_entrypoint.sh")
+    ws_name = pathlib.Path(workspace).name
 
     cmd = f"""docker run --name {container_name} --gpus all --rm -it \
--v {workspace}:/root/swarm_ws/ \
--v {workspace}:/home/xuhao/swarm_ws/ \
--v /home/xuhao/source/:/home/xuhao/source/ \
+-v {workspace}:{workspace} \
 -v {output_path}:/root/output/ \
 -v {swarm_config_path}:/root/SwarmConfig/ \
 -v {config_path}:/root/config.yaml \
@@ -71,7 +70,7 @@ def run_swarm_docker_evaluation(config, enable_zsh, config_path, token):
     if enable_zsh:
         time.sleep(1.0)
         for name in config["dataset"]:
-            cmd = f'terminator -T {container_name}_zsh -x docker exec -it {container_name} /bin/zsh'
+            cmd = f'terminator -T {container_name}_zsh -x docker exec -it {container_name} /bin/bash'
             pids_zsh[container_name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     
     return pids, pids_zsh
