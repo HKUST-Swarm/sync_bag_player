@@ -15,7 +15,7 @@ def kill_docker(name):
     cmd = f"docker container kill {name}"
     system(cmd)
 
-def launch_docker(name, config, config_path, token):
+def launch_docker(name, config, config_path, token, terminator):
     print(f"Launching docker {name}")
     dataset_path = pathlib.Path(config_path).parent.resolve()
     current_dir = pathlib.Path(__file__).parent.resolve()
@@ -57,21 +57,24 @@ def launch_docker(name, config, config_path, token):
 --privileged \
 {image_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path} {token}"""
     print(cmd)
-    p_docker = subprocess.Popen(f'terminator -T {container_name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
+    if terminator:
+        p_docker = subprocess.Popen(f'terminator -T {container_name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
+    else:
+        p_docker = subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     return p_docker, container_name
 
-def run_swarm_docker_evaluation(config, enable_zsh, config_path, token):
+def run_swarm_docker_evaluation(config, enable_zsh, config_path, token, terminator):
     pids = {}
     pids_zsh = {}
     for name in config["dataset"]:
-        pid, container_name = launch_docker(name, config, config_path, token)
+        pid, container_name = launch_docker(name, config, config_path, token, terminator)
         pids[container_name] = pid
 
     if enable_zsh:
         time.sleep(1.0)
         for name in config["dataset"]:
-            cmd = f'terminator -T {container_name}_zsh -x docker exec -it {container_name} /bin/bash'
-            pids_zsh[container_name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
+            cmd = f'terminator -T {name}_zsh -x docker exec -it {name} /bin/bash'
+            pids_zsh[name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     
     return pids, pids_zsh
 
@@ -82,13 +85,14 @@ if __name__ == '__main__':
     parser.add_argument('config_path', metavar='config_path',
                     help='config_path for evaluation')
     parser.add_argument("-z", '--zsh', action='store_true', help="Open additional zsh.")
+    parser.add_argument("-t", '--terminator', action='store_true', help="Open docker in terminator.")
     parser.add_argument("-n", '--nointeraction', action='store_true', help="No interaction")
 
     token = random.randint(0, 1000000)
     args = parser.parse_args()
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
-    pids, _ = run_swarm_docker_evaluation(config, args.zsh, args.config_path, token)
+    pids, _ = run_swarm_docker_evaluation(config, args.zsh, args.config_path, token, args.terminator)
 
     try:
         if "start_latency" in config:
