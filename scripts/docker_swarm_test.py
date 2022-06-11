@@ -58,7 +58,7 @@ def launch_docker(name, config, config_path, token, terminator):
 {image_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path} {token}"""
     print(cmd)
     if terminator:
-        p_docker = subprocess.Popen(f'terminator -T {container_name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
+        p_docker = subprocess.Popen(f'gnome-terminal --name {container_name} -- bash -c "{cmd}"', shell=True, stderr=subprocess.STDOUT)
     else:
         p_docker = subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     return p_docker, container_name
@@ -87,6 +87,7 @@ if __name__ == '__main__':
     parser.add_argument("-z", '--zsh', action='store_true', help="Open additional zsh.")
     parser.add_argument("-t", '--terminator', action='store_true', help="Open docker in terminator.")
     parser.add_argument("-n", '--nointeraction', action='store_true', help="No interaction")
+    parser.add_argument("-s", '--sleep', type=float, default=3.0, help="sleep after exec command")
 
     token = random.randint(0, 1000000)
     args = parser.parse_args()
@@ -103,10 +104,10 @@ if __name__ == '__main__':
         sync_ctrl = SyncCtrl(rate=config["rate"], t_start=config["t_start"], duration=config["duration"], 
             token=token, start_delay=1.0, drone_num=len(config["dataset"]), enable_interaction=not args.nointeraction)
         sync_ctrl.work()
+        print(f"Sleep for {args.sleep} s. Ctrl-c to exit")
+        time.sleep(args.sleep)
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
-
-    time.sleep(3)
     for p in pids:
         pids[p].terminate()
         kill_docker(p)

@@ -80,7 +80,6 @@ class SyncCtrl:
             except Exception as e:
                 self.stop()
                 raise e
-        print("Finish rosbplay cmd")
 
     def statistics(self):
         status = "Playing"
@@ -135,7 +134,6 @@ class SyncCtrl:
         self.lc.publish("CTRL_PLAYER", ctrl.encode())
         self.is_terminated = True
         time.sleep(0.1)
-        print("[SyncCtrl] Stop bag play. Exit.")
 
 
     def pause(self):
