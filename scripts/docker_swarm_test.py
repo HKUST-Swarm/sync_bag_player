@@ -53,9 +53,10 @@ def launch_docker(name, config, config_path, token, terminator):
 -v {dataset_path}:/root/bags/ \
 -v {entry_point_path}:/root/entry_point.sh \
 -v {docker_entry_point}:/root/docker_entrypoint.sh \
+--env='DRONE_ID={_id}' \
 --env='DISPLAY' --volume='/tmp/.X11-unix:/tmp/.X11-unix:rw' \
 --privileged \
-{image_name} /root/docker_entrypoint.sh {_id} /root/bags/{bag_path} {token}"""
+{image_name} /root/docker_entrypoint.sh /root/bags/{bag_path} {token}"""
     print(cmd)
     if terminator:
         p_docker = subprocess.Popen(f'gnome-terminal --name {container_name} -- bash -c "{cmd}"', shell=True, stderr=subprocess.STDOUT)
