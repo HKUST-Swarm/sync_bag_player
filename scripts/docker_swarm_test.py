@@ -8,7 +8,6 @@ import pathlib
 import time
 from sync_rosplay_cmd import SyncCtrl
 import random
-import random
 from datetime import datetime
 
 def kill_docker(name):

@@ -7,9 +7,7 @@ import lcm
 from SyncBagCtrl import *
 from TimeSync import *
 from PlayerStats import *
-import keyboard  # using module keyboard
 import readchar
-from pynput.keyboard import Key, Listener
 import threading
 import math
 import warnings
