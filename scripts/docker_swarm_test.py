@@ -3,7 +3,6 @@ import argparse
 import yaml
 from os import system
 import subprocess
-PROJECT_PATH = "~"
 import pathlib
 import time
 from sync_rosplay_cmd import SyncCtrl
@@ -58,7 +57,7 @@ def launch_docker(name, config, config_path, token, terminator):
 {image_name} /root/docker_entrypoint.sh /root/bags/{bag_path} {token}"""
     print(cmd)
     if terminator:
-        p_docker = subprocess.Popen(f'gnome-terminal --name {container_name} -- bash -c "{cmd}"', shell=True, stderr=subprocess.STDOUT)
+        p_docker = subprocess.Popen(f'terminator -T {container_name} -x "{cmd}"', shell=True, stderr=subprocess.STDOUT)
     else:
         p_docker = subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     return p_docker, container_name
@@ -71,9 +70,9 @@ def run_swarm_docker_evaluation(config, enable_zsh, config_path, token, terminat
         pids[container_name] = pid
 
     if enable_zsh:
-        time.sleep(1.0)
+        time.sleep(2.0)
         for name in config["dataset"]:
-            cmd = f'terminator -T {name}_zsh -x docker exec -it {name} /bin/bash'
+            cmd = f'terminator -T {name}_bash -x docker exec -it {container_name} /bin/bash'
             pids_zsh[name] =  subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT)
     
     return pids, pids_zsh
@@ -84,7 +83,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Docker swarm evaluation tool.')
     parser.add_argument('config_path', metavar='config_path',
                     help='config_path for evaluation')
-    parser.add_argument("-z", '--zsh', action='store_true', help="Open additional zsh.")
+    parser.add_argument("-z", '--bash', action='store_true', help="Open additional bash.")
     parser.add_argument("-t", '--terminator', action='store_true', help="Open docker in terminator.")
     parser.add_argument("-n", '--nointeraction', action='store_true', help="No interaction")
     parser.add_argument("-s", '--sleep', type=float, default=3.0, help="sleep after exec command")
@@ -93,7 +92,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
-    pids, _ = run_swarm_docker_evaluation(config, args.zsh, args.config_path, token, args.terminator)
+    pids, _ = run_swarm_docker_evaluation(config, args.bash, args.config_path, token, args.terminator)
 
     try:
         if "start_latency" in config:
