@@ -31,9 +31,9 @@ class SyncBagPlayer:
         self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
         self.ctrl_sub = self.lc.subscribe("CTRL_PLAYER", self.sync_bag_ctrl_handle)
         self.ctrl_sub = self.lc.subscribe("TIME_SYNC_CTRL", self.handle_time_sync)
+        self.prepare_publishers()
         self.t = threading.Thread(target = self.lcm_thread)
         self.t.start()
-        self.prepare_publishers()
     
         time.sleep(2.0)    
         self.send_time_sync(self.play_t0_sys, self.bag_t0)

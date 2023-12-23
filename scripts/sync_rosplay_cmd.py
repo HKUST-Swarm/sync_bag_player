@@ -46,8 +46,8 @@ class SyncCtrl:
         if msg.token != self.token:
             return
         if msg.played_time_bag < -0.99:
-            print("Recv end stats")
             self.stopped_num += 1
+            print("\n\nRecv end stats self.stopped_num ", self.stopped_num, "self.drone_num ", self.drone_num)
             if self.stopped_num >= self.drone_num:
                 self.stop()
             return
@@ -73,11 +73,10 @@ class SyncCtrl:
                         self.stop()
                     elif k == " ":
                         self.pause()
-                    else:
-                        print(k)
             except Exception as e:
                 self.stop()
                 raise e
+        print("SyncCtrl exit")
 
     def statistics(self):
         status = "Playing"
@@ -114,6 +113,7 @@ class SyncCtrl:
             self.lc.handle_timeout(10)
 
     def start(self):
+        time.sleep(10)
         ctrl = SyncBagCtrl()
         ctrl.cmd = 1
         self.t_sys_start = ctrl.system_time = time.time() + self.start_delay

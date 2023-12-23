@@ -10,4 +10,4 @@ rosrun sync_bag_player sync_rosplay.py --path $1  --drone-id $DRONE_ID --config-
 /root/entry_point.sh
 echo "Will end bag record"
 pkill -TERM record
-sleep 10000
+# sleep 10000
