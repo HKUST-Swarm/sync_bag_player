@@ -42,9 +42,14 @@ def launch_docker(name, config, config_path, token, terminator):
     else:
         docker_entry_point = current_dir.joinpath("docker_entrypoint.sh")
     ws_name = pathlib.Path(workspace).name
+    if workspace == "":
+        workspace_mount = ""
+    else:
+        workspace_mount = workspace+"/:/root/swarm_ws/"
 
+# -v {workspace}:/root/swarm_ws/ \
     cmd = f"""docker run --name {container_name} --gpus all --rm -it \
--v {workspace}:{workspace} \
+-v {workspace_mount} \
 -v {output_path}:/root/output/ \
 -v {swarm_config_path}:/root/SwarmConfig/ \
 -v {config_path}:/root/config.yaml \
